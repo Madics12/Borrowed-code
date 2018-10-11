@@ -1,0 +1,17 @@
+Function CheckGroupMembershipWildCard ($acct, $GroupName) {
+  # This function checks to see if the current user is a member of the specified group.
+  # The function is called as:
+  # CheckGroupMembership <group_to_check_against>
+  If ($acct.MemberOf | Where {$_ -like "$GroupName"}) {
+    #"User is a member of: $GroupName" | Add-Content $logfile
+    Return "True"
+  } Else {
+    #"User is not a member of: $GroupName" | Add-Content $logfile
+    Return "False"
+  }
+}
+
+$userGroupInfo = Get-ADUser $UserNm -Properties MemberOf
+if ((CheckGroupMembershipWildCard $userGroupInfo "*CN=Sect125*") -eq "True") {
+  #doSomething
+}

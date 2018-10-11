@@ -1,0 +1,1 @@
+get-adgroup -filter { name -like "*acrobat*" } | select Name

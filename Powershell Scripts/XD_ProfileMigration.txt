@@ -1,0 +1,572 @@
+[void] [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") 
+
+function Test-ADGroupMember {
+ Param ($User,$Group)
+  Trap {Return "error"}
+    If (Get-ADUser -Filter "memberOf -RecursiveMatch '$((Get-ADGroup $Group).DistinguishedName)'" -SearchBase $((Get-ADUser $User).DistinguishedName)) { $true }
+    Else { $false }
+}
+
+function Set-TrustLocation ($LocationNum, $LocationPath, $LocationDesc) 
+{
+    $RunTime = Get-Date -UFormat "%m.%d.%Y %H:%M"
+
+    #Create Trusted Location Keys
+    New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Word\Security\Trusted Locations" -Name $LocationNum -ErrorAction SilentlyContinue
+    New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Excel\Security\Trusted Locations" -Name $LocationNum -ErrorAction SilentlyContinue
+    New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\PowerPoint\Security\Trusted Locations" -Name $LocationNum -ErrorAction SilentlyContinue
+    New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Access\Security\Trusted Locations" -Name $LocationNum -ErrorAction SilentlyContinue
+
+    #Enable Macro and Trust Network locations
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Word\Security" -Name AccessVBOM -PropertyType DWord -Value "1" -Force -ErrorAction SilentlyContinue
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Word\Security" -Name VBAWarnings -PropertyType DWord -Value "1" -Force -ErrorAction SilentlyContinue
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Word\Security\Trusted Locations" -Name AllowNetworkLocations -PropertyType DWord -Value "1" -Force -ErrorAction SilentlyContinue
+    
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Excel\Security" -Name AccessVBOM -PropertyType DWord -Value "1" -Force -ErrorAction SilentlyContinue
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Excel\Security" -Name VBAWarnings -PropertyType DWord -Value "1" -Force -ErrorAction SilentlyContinue
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Excel\Security\Trusted Locations" -Name AllowNetworkLocations -PropertyType DWord -Value "1" -Force -ErrorAction SilentlyContinue
+    
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Access\Security" -Name VBAWarnings -PropertyType DWord -Value "1" -Force -ErrorAction SilentlyContinue
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Access\Security\Trusted Locations" -Name AllowNetworkLocations -PropertyType DWord -Value "1" -Force -ErrorAction SilentlyContinue
+    
+
+    #Create Trusted Location Values
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Word\Security\Trusted Locations\$LocationNum" -Name Path -PropertyType String -Value $LocationPath -Force -ErrorAction SilentlyContinue
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Word\Security\Trusted Locations\$LocationNum" -Name AllowSubfolders -PropertyType DWord -Value "1" -Force -ErrorAction SilentlyContinue
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Word\Security\Trusted Locations\$LocationNum" -Name Description -PropertyType String -Value $LocationDesc -Force -ErrorAction SilentlyContinue
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Word\Security\Trusted Locations\$LocationNum" -Name Date -PropertyType String -Value $RunTime -Force -ErrorAction SilentlyContinue
+
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Excel\Security\Trusted Locations\$LocationNum" -Name Path -PropertyType String -Value $LocationPath -Force -ErrorAction SilentlyContinue
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Excel\Security\Trusted Locations\$LocationNum" -Name AllowSubfolders -PropertyType DWord -Value "1" -Force -ErrorAction SilentlyContinue
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Excel\Security\Trusted Locations\$LocationNum" -Name Description -PropertyType String -Value $LocationDesc -Force -ErrorAction SilentlyContinue
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Excel\Security\Trusted Locations\$LocationNum" -Name Date -PropertyType String -Value $RunTime -Force -ErrorAction SilentlyContinue
+
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\PowerPoint\Security\Trusted Locations\$LocationNum" -Name Path -PropertyType String -Value $LocationPath -Force -ErrorAction SilentlyContinue
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\PowerPoint\Security\Trusted Locations\$LocationNum" -Name AllowSubfolders -PropertyType DWord -Value "1" -Force -ErrorAction SilentlyContinue
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\PowerPoint\Security\Trusted Locations\$LocationNum" -Name Description -PropertyType String -Value $LocationDesc -Force -ErrorAction SilentlyContinue
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\PowerPoint\Security\Trusted Locations\$LocationNum" -Name Date -PropertyType String -Value $RunTime -Force -ErrorAction SilentlyContinue
+
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Access\Security\Trusted Locations\$LocationNum" -Name Path -PropertyType String -Value $LocationPath -Force -ErrorAction SilentlyContinue
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Access\Security\Trusted Locations\$LocationNum" -Name AllowSubfolders -PropertyType DWord -Value "1" -Force -ErrorAction SilentlyContinue
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Access\Security\Trusted Locations\$LocationNum" -Name Description -PropertyType String -Value $LocationDesc -Force -ErrorAction SilentlyContinue
+    New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Access\Security\Trusted Locations\$LocationNum" -Name Date -PropertyType String -Value $RunTime -Force -ErrorAction SilentlyContinue
+}
+
+$User = [Environment]::Username
+$Desktop = [Environment]::GetFolderPath("Desktop")
+$Startup = [Environment]::GetFolderPath("Startup")
+$ComputerName = $env:computername
+
+$CaptureDir = "Z:\XD_$User" + "_ProfileCapture"
+
+$logfile = "$CaptureDir\Progress.log"
+$localuserdir = $env:USERPROFILE
+$userAppData = $env:APPDATA
+
+$objForm = New-Object System.Windows.Forms.Form 
+$objForm.Text = "Profile Migration Status"
+$objForm.Size = New-Object System.Drawing.Size(350,100) 
+$objForm.StartPosition = "CenterScreen"
+
+$objForm.KeyPreview = $true
+$objForm.Add_KeyDown({if ($_.KeyCode -eq "Enter") 
+    {$x=$objTextBox.Text;$objForm.Close()}})
+$objForm.Add_KeyDown({if ($_.KeyCode -eq "Escape") 
+    {$objForm.Close()}})
+
+$objLabel = New-Object System.Windows.Forms.Label
+$objLabel.Location = New-Object System.Drawing.Size(5,10) 
+$objLabel.Size = New-Object System.Drawing.Size(350,20) 
+$objLabel.Text = "Starting Profile Build ..."
+$objForm.Controls.Add($objLabel)
+
+$progressBar1 = New-Object System.Windows.Forms.ProgressBar
+$progressBar1.Name = 'progressBar1'
+$progressBar1.Value = 0
+$progressBar1.Style="Continuous"
+$progressBar1.Location = New-Object System.Drawing.Size(10,35)
+$progressBar1.Size = New-Object System.Drawing.Size(310,20)
+$objForm.Controls.Add($progressBar1)
+
+$objForm.Add_Shown({$objForm.Activate()})
+$objForm.Show()
+[void] $objForm.Focus()
+$objForm.Refresh()
+
+
+
+if (Test-Path "Z:\") {
+
+if (($ComputerName.ToUpper() -like "V-STD*") -or ($ComputerName.ToUpper() -like "V-AFES*")) {
+
+if (Test-Path "$CaptureDir"){
+   Remove-Item -Recurse -Force $CaptureDir
+}
+
+$progress = 1
+$maxprogress = 9
+$objLabel.Text = "Starting Profile Capture. This will logoff your current user session!"
+$objForm.Refresh()
+
+[int]$pct = ($progress/$maxprogress)*100
+$progressbar1.Value = $pct
+$objLabel.text="Creating capture folders .."
+$objForm.Refresh()
+ 
+#Write-Host "Creating Folder $CaptureDir"
+New-Item -Path "$CaptureDir" -ItemType directory
+
+#Write-Host "Creating Folder"
+New-Item -Path "$CaptureDir\Printers" -ItemType directory
+
+#Write-Host "Creating Folder"
+New-Item -Path "$CaptureDir\MappedDrives" -ItemType directory
+
+#Write-Host "StartUp"
+#New-Item -Path "$CaptureDir\Startup" -ItemType directory
+
+#Write-Host "Links"
+New-Item -Path "$CaptureDir\Links" -ItemType directory
+
+#Write-Host "Network Shortcuts"
+New-Item -Path "$CaptureDir\Network Shortcuts" -ItemType directory
+
+$progress++
+[int]$pct = ($progress/$maxprogress)*100
+$progressbar1.Value = $pct
+$objLabel.text="Exporting mapped drives ..."
+$objForm.Refresh()
+
+#Start - get and export mapped network drives
+$date = Get-Date -Format "MM/dd/yyyy HH:mm:ss:fff"
+"$date --- Exporting mapped drives to .csv" | Add-Content $logfile
+Get-WmiObject -class Win32_NetworkConnection |Select-Object LocalName,RemoteName | where {$_.LocalName -ne $null} | Export-Csv "$CaptureDir\MappedDrives\MN.csv" -NoTypeInformation
+#End - get and export mapped network drives
+
+$progress++
+[int]$pct = ($progress/$maxprogress)*100
+$progressbar1.Value = $pct
+$objLabel.text="Copying Desktop Icons ..."
+$objForm.Refresh()
+
+#Start - Migrate Desktop icons
+if (!(Test-Path "Z:\Desktop")) {
+  New-Item -Path "Z:\Desktop" -ItemType directory
+}
+
+if ((Test-Path "Z:\AppSense\Desktop") -and (Test-Path "Z:\Desktop")){
+  
+  Get-ChildItem -Path "Z:\AppSense\Desktop\" | `
+  ForEach-Object {
+    if ($_.PSIsContainer) {
+       $DesktopDirName = "Z:\AppSense\Desktop\" + $_.Name
+       Copy-Item -Path $DesktopDirName -Recurse -Destination "Z:\Desktop\" -ErrorAction SilentlyContinue
+    }
+    elseif ($_.Name -like "*.lnk") {
+      if (!($_.Name -like "*Outlook 2013*") -and !($_.Name -like "*Outlook 2010*") -and !($_.Name -like "*Outlook 2007*") -and !($_.Name -like "*Word 2013*") -and !($_.Name -like "*Word 2010*") -and !($_.Name -like "*Word 2007*") -and !($_.Name -like "*Benefits WorkView*") -and !($_.Name -like "*Excel 2013*") -and !($_.Name -like "*Excel 2010*") -and !($_.Name -like "*Excel 2007*") -and !($_.Name -like "*DesktopRuler*") -and !($_.Name -like "*Lync*") -and !($_.Name -like "*Desktop.ini*") -and !($_.Name -like "*Superflex*") -and !($_.Name -like "*OnBase Client*") -and !($_.Name -like "*Mocha*") -and !($_.Name -like "*MTN3270a*") -and !($_.Name -like "*MyCitrix*") -and !($_.Name -like "*Chrome*") -and !($_.Name -like "*ERP_Prod*") -and !($_.Name -like "*Vista*") -and !($_.Name -like "*Access 2010*") -and !($_.Name -like "*Access 2013*") -and !($_.Name -like "*Access 2007*") -and !($_.Name -like "*Powerpoint*")) {
+        Copy-Item -Path $_.FullName -Destination "Z:\Desktop\" -ErrorAction SilentlyContinue
+      }
+    }
+    elseif ($_.Name -like "*.url") {
+      if (!($_.Name -like "*Citrix*")) {
+        Copy-Item -Path $_.FullName -Destination "Z:\Desktop\" -ErrorAction SilentlyContinue
+      } 
+    }
+    else {
+      Copy-Item -Path $_.FullName -Destination "Z:\Desktop\" -ErrorAction SilentlyContinue
+    }
+  }
+
+}
+else{
+  $wshell = New-Object -ComObject Wscript.Shell -ErrorAction Stop
+  $wshell.Popup("Z: Desktop Folder does not exist for user. Cannot run profile migration script.",10,"Status",1)
+}
+#End -  Desktop icon migration
+
+$progress++
+[int]$pct = ($progress/$maxprogress)*100
+$progressbar1.Value = $pct
+$objLabel.text="Copying Favorites ..."
+$objForm.Refresh()
+
+#Start - Migrate Favorites
+if (!(Test-Path "Z:\Favorites")) {
+  New-Item -Path "Z:\Favorites" -ItemType directory
+}
+
+if ((Test-Path "Z:\AppSense\Favorites") -and (Test-Path "Z:\Favorites")){
+  Get-ChildItem -Path "Z:\AppSense\Favorites\" | `
+  
+  ForEach-Object {
+	  Copy-Item -Path $_.FullName -Recurse -Destination "Z:\Favorites\" -ErrorAction SilentlyContinue
+  }
+}
+#End -  Migrate Favorites
+
+$progress++
+[int]$pct = ($progress/$maxprogress)*100
+$progressbar1.Value = $pct
+$objLabel.text="Exporting Printers ..."
+$objForm.Refresh()
+
+#Start - export/Copy Printer information
+$date = Get-Date -Format "MM/dd/yyyy HH:mm:ss:fff"
+"$date --- Exporting printer connections and configurations for Canon Printers" | Add-Content $logfile
+$CPR = "HKCU:\\Software\Canon"
+if (Test-Path $CPR) {
+  $CPrinters = get-childitem -Path $CPR -Name
+  $cmd = "reg export"
+
+  foreach($key in $CPrinters){
+    $key = "HKCU:\\Software\Canon\$key"
+    Get-ChildItem $key -Name | foreach {if($_ -eq "Print"){Copy-Item "$key\$_" -recurse -Destination "$key\$_.Afcorp.AFG"} }
+    Get-ChildItem $key -Name | foreach {if($_ -like "happ-print*"){Copy-Item "$key\$_" -recurse -Destination "$key\Print.Afcorp.AFG"} }
+  }
+
+  foreach ($printer in $CPrinters){
+    $name = $printer
+    $key = "HKCU\Software\Canon\$name"
+    $export = "$CaptureDir\Printers\$name.reg"
+    $params =  "$key $export"
+
+    #Write-Host "Exporting Printer Registry"
+    invoke-expression "Reg Export $params"
+  }
+}
+
+Get-WmiObject -Class Win32_Printer | Where-object {($_.ShareName -notlike "")} | Select-Object ShareName | Export-Csv "$CaptureDir\Printers\Printers.csv" -NoTypeInformation
+
+#End - export/Copy Printer information
+
+$progress++
+[int]$pct = ($progress/$maxprogress)*100
+$progressbar1.Value = $pct
+$objLabel.text="Exporting Notes ..."
+$objForm.Refresh()
+
+#Start - Export Stickies
+$date = Get-Date -Format "MM/dd/yyyy HH:mm:ss:fff"
+$stickynotes = "$userAppData\Microsoft\Sticky Notes"
+if(Test-Path $stickynotes ){
+    Copy-Item -Path $stickynotes -recurse -destination "$CaptureDir"
+"$date --- Exporting sticky notes." | Add-Content $logfile
+}
+else{
+"$date --- No Sticky notes detected" | Add-Content $logfile
+}
+
+$process = Get-Process "StikyNot" -ErrorAction silentlycontinue
+if ($process) {
+   New-Item -Path "$CaptureDir\StickyRunning.txt" -ItemType file
+}
+else {
+  "Sticky Notes not running"
+}
+
+$progress++
+[int]$pct = ($progress/$maxprogress)*100
+$progressbar1.Value = $pct
+$objLabel.text="Exporting Explorer Links ..."
+$objForm.Refresh()
+
+#Export Links
+$date = Get-Date -Format "MM/dd/yyyy HH:mm:ss:fff"
+$links = "$localuserdir\Links"
+if(Test-Path "$links" ){
+Copy-Item -Path $links -recurse -destination "$CaptureDir\" -ErrorAction SilentlyContinue
+"$date --- Exporting Links" | Add-Content $logfile
+}
+else{
+"$date --- No Links Detected" | Add-Content $logfile
+}
+
+$progress++
+[int]$pct = ($progress/$maxprogress)*100
+$progressbar1.Value = $pct
+$objLabel.text="Exporting Explorer Favorites ..."
+$objForm.Refresh()
+
+#Export Custom Network Locations
+$date = Get-Date -Format "MM/dd/yyyy HH:mm:ss:fff"
+$nl = "$userAppData\Microsoft\Windows\Network Shortcuts"
+if(Test-Path $nl){
+Copy-Item -Path $nl -recurse -destination "$CaptureDir\" -ErrorAction SilentlyContinue
+"$date --- Exporting Network Shortcuts" | Add-Content $logfile
+}
+else{
+"$date --- No  Network Shortcuts Detected" | Add-Content $logfile
+}
+
+Start-Sleep -s 1
+
+$progress++
+[int]$pct = ($progress/$maxprogress)*100
+$progressbar1.Value = $pct
+$objLabel.text="Login-OFF User now .."
+$objForm.Refresh()
+
+#Start - Complete log
+"Capture completed." | Add-Content $logfile
+#End - Complete log
+Start-Sleep -s 3
+
+Start-Process "logoff.exe"
+
+}#End Profile Capture from Old VM
+
+elseif ($ComputerName.ToUpper() -like "V-XD*") {
+ 
+ if (Test-Path "$CaptureDir"){
+ 
+  $progress = 1
+  $maxprogress = 9
+  $objLabel.Text = "Applying Profile Settings .. Please Wait"
+  $objForm.Refresh()
+  
+  Start-Sleep -s 8
+    
+  [int]$pct = ($progress/$maxprogress)*100
+  $progressbar1.Value = $pct
+  $objLabel.text="Mapping Drives ..."
+  $objForm.Refresh()
+  
+  $RegPrinters = Get-ChildItem "$CaptureDir\Printers\" -Filter "*.Reg"
+  
+  if (Test-Path "$CaptureDir\MappedDrives\Mn.csv"){
+  
+    $MNCSV = Import-Csv "$CaptureDir\MappedDrives\Mn.csv"
+    foreach ($item in $MNCSV){
+		$date = Get-Date -Format "MM/dd/yyyy HH:mm:ss:fff"
+		$oldNetworkDrive = $item.LocalName
+		$oldRemoteName = $item.RemoteName
+		$newNetworkDrive = Get-WmiObject Win32_NetworkConnection  -Filter "LocalName='$oldNetworkDrive'"
+			
+		if (-not $newNetworkDrive){
+		  if (Test-Path $oldRemoteName){
+			net use $oldNetworkDrive $oldRemoteName /persistent:yes
+			"$date --- Success mapping drive $oldNetworkDrive to $oldRemoteName" | Add-Content $logFile
+		  }	
+		  else{
+			"$date --- ERROR mapping drive $oldNetworkDrive to $oldRemoteName. No access." | Add-Content $logFile
+		  }
+		}
+		else{
+			"$date --- Mapped drive $oldNetworkDrive already used." | Add-Content $logFile
+		}     
+    }
+  }
+  else{
+   $date = Get-Date -Format "MM/dd/yyyy HH:mm:ss:fff"
+   "$date --- No mapped drives CSV detected." | Add-Content $logfile
+  }
+#End -  Map network drives
+
+#Start - Connect to Printers
+
+$progress++
+[int]$pct = ($progress/$maxprogress)*100
+$progressbar1.Value = $pct
+$objLabel.text="Restoring Printers ..."
+$objForm.Refresh()
+	
+if (Test-Path "$CaptureDir\Printers\Printers.csv"){
+
+  $Printers = Import-Csv "$CaptureDir\Printers\Printers.csv"
+  $PObject = New-Object -COM WScript.Network
+
+  foreach($printer in $Printers){
+    $printer = $printer.ShareName
+    $objLabel.text="Mapping $printer ..."
+    $objForm.Refresh()
+    $printer = "\\Print.afcorp.afg\$Printer"
+    $PObject.AddWindowsPrinterConnection($Printer)
+    $date = Get-Date -Format "MM/dd/yyyy HH:mm:ss:fff"
+    "$date --- Connecting to $printer.ShareName"
+  }
+}
+else {
+  $date = Get-Date -Format "MM/dd/yyyy HH:mm:ss:fff"
+  "$date --- No printer CSV detected." | Add-Content $logfile
+}
+#End - Connect to Printers
+
+$objLabel.text="Restoring Copier settings ..."
+$objForm.Refresh()
+#Start - Apply dept code to Cannon Printers
+foreach ($RegPrinter in $RegPrinters){
+  $RegPrinter = "$CaptureDir\Printers\$RegPrinter"
+  Invoke-Expression "Reg Import $RegPrinter" -ErrorAction SilentlyContinue
+}
+#End - Apply dept code to Cannon Printers
+
+$progress++
+[int]$pct = ($progress/$maxprogress)*100
+$progressbar1.Value = $pct
+$objLabel.text="Restoring Word File locations ..."
+[void] $objForm.Focus()
+$objForm.Refresh()
+
+#Set Word File locations for customer service colleagues
+$date = Get-Date -Format "MM/dd/yyyy HH:mm:ss:fff"
+$WWT = "HKCU:\\Software\Microsoft\Office\15.0\Common\General"
+$WS = "HKCU:\\Software\Microsoft\Office\15.0\Word\Options"
+if (Test-ADGroupMember $user "Flex-AFES"){
+  #AFES FLEX
+  $WWTValue = "\\FS7\Vol1\Home\Flex\Share\Wordtemp"
+  $WSValue = "\\FS7\Vol1\Home\Flex\Share\Wordtemp\StartUP"
+  "$date --- Success, identified as AFES Flex Colleague"
+}
+elseif ((Test-ADGroupMember $user "AFES-CustomerService") -and !(Test-ADGroupMember $user "Flex-AFES")){
+  #AFES CS
+  $WWTValue = "\\AFcorp.afg\AFHomeoffice\DR-BC\AFES\UND\WORDTEMP97"
+  $WSValue = "\\AFcorp.afg\AFHomeoffice\DR-BC\AFES\UND\WORDTEMP97\STARTUP"
+  "$date --- Success, identified as AFES Customer Service" | Add-Content $logfile
+}
+elseif(Test-adgroupmember $user "AWD-Customer-Service"){
+  #AWD OPS
+  $WWTValue = "\\AFcorp.afg\AFHomeoffice\DR-BC\AWD\OPERATIONS\LETTERS DATABASE"
+  $WSValue = "\\AFcorp.afg\AFHomeoffice\DR-BC\AWD\OPERATIONS\LETTERS DATABASE\LETTERS\STARTUP"
+  "$date --- Success, identified as AFES Flex ColleagueAWD Customer Service"
+}
+else {
+  "$date --- No file locations set" | Add-Content $logfile
+}
+Set-ItemProperty -Path $WWT -Name "SharedTemplates" -Value $WWTValue -ErrorAction SilentlyContinue
+Set-ItemProperty -Path $WS -Name "STARTUP-PATH" -Value $WSValue -ErrorAction SilentlyContinue
+
+$progress++
+[int]$pct = ($progress/$maxprogress)*100
+$progressbar1.Value = $pct
+$objLabel.text="Restoring Notes ..."
+[void] $objForm.Focus()
+$objForm.Refresh()
+
+#Start - Import Sticknotes
+if (Test-Path "$CaptureDir\Sticky Notes"){
+  Copy-Item -Path "$CaptureDir\Sticky Notes" -Recurse -Destination "$userAppData\microsoft\" -ErrorAction SilentlyContinue
+}else{
+}
+#End - Import Sticknotes
+
+$progress++
+[int]$pct = ($progress/$maxprogress)*100
+$progressbar1.Value = $pct
+$objLabel.text="Restoring explorer links ..."
+[void] $objForm.Focus()
+$objForm.Refresh()
+
+#Start - Import Links
+if (Test-Path "$CaptureDir\Links"){
+  Copy-Item -Path "$CaptureDir\Links" -Recurse -Destination "$localuserdir\" -ErrorAction SilentlyContinue
+}else{
+}
+#End - Import Links
+
+$progress++
+[int]$pct = ($progress/$maxprogress)*100
+$progressbar1.Value = $pct
+$objLabel.text="Restoring explorer favorites ..."
+[void] $objForm.Focus()
+$objForm.Refresh()
+
+#Start - Import Network Shortcuts
+if (Test-Path "$CaptureDir\Network Shortcuts"){
+  Copy-Item -Path "$CaptureDir\Network Shortcuts" -Recurse -Destination "$userAppData\Microsoft\Windows\" -ErrorAction SilentlyContinue
+}else{
+}
+#End - Import Network Connections
+
+Start-Sleep -s 1
+
+#Launch StickyNotes if user had some
+if (Test-Path -Path "$CaptureDir\StickyRunning.txt") {
+    Start-Process "c:\Windows\system32\StikyNot.exe"
+}
+
+$progress++
+[int]$pct = ($progress/$maxprogress)*100
+$progressbar1.Value = $pct
+$objLabel.text="Setting Internet Explorer homepage ..."
+[void] $objForm.Focus()
+$objForm.Refresh()
+
+New-ItemProperty -Path "HKCU:\Software\Microsoft\Internet Explorer\Main\" -Name "Start Page" -Value "http://afweb2.afcorp.afg" -PropertyType "STRING" -Force
+New-ItemProperty -Path "HKCU:\Software\Microsoft\Internet Explorer\Main\" -Name "Start Page Redirect Cache" -Value "" -PropertyType "STRING" -Force
+
+#****************************************************************************************************************************************************************
+#Disable Office First Run, Opt-in Wizard, and Customer Experience Improvement Program
+#****************************************************************************************************************************************************************
+
+$progress++
+[int]$pct = ($progress/$maxprogress)*100
+$progressbar1.Value = $pct
+$objLabel.text="Setting Office Security Settings"
+[void] $objForm.Focus()
+$objForm.Refresh()
+
+New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0" -Name FirstRun -ErrorAction SilentlyContinue
+New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0" -Name Common -ErrorAction SilentlyContinue
+New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Common" -Name PTWatson -ErrorAction SilentlyContinue
+New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Common" -Name General -ErrorAction SilentlyContinue
+New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Common" -Name Graphics -ErrorAction SilentlyContinue
+New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\FirstRun" -Name BootedRTM -PropertyType DWord -Value "1" -Force -ErrorAction SilentlyContinue
+New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\FirstRun" -Name disablemovie -PropertyType DWord -Value "1" -Force -ErrorAction SilentlyContinue
+New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Common\General" -Name shownfirstrunoptin -PropertyType DWord -Value "1" -Force -ErrorAction SilentlyContinue
+New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Common\PTWatson" -Name PTWOptIn -PropertyType DWord -Value "0" -Force -ErrorAction SilentlyContinue
+New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Common" -Name qmenable  -PropertyType DWord -Value "0" -Force -ErrorAction SilentlyContinue
+New-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Common\Graphics" -Name DisableHardwareAcceleration -PropertyType DWord -Value "1" -Force -ErrorAction SilentlyContinue
+
+
+New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0" -Name Word -ErrorAction SilentlyContinue
+New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0" -Name Excel -ErrorAction SilentlyContinue
+New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0" -Name PowerPoint -ErrorAction SilentlyContinue
+New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0" -Name Access -ErrorAction SilentlyContinue
+New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Word" -Name Security -ErrorAction SilentlyContinue
+New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Excel" -Name Security -ErrorAction SilentlyContinue
+New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\PowerPoint" -Name Security -ErrorAction SilentlyContinue
+New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Access" -Name Security -ErrorAction SilentlyContinue
+New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Word\Security" -Name "Trusted Locations" -ErrorAction SilentlyContinue
+New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Excel\Security" -Name "Trusted Locations" -ErrorAction SilentlyContinue
+New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\PowerPoint\Security" -Name "Trusted Locations" -ErrorAction SilentlyContinue
+New-Item -Path "HKCU:\SOFTWARE\Microsoft\Office\15.0\Access\Security" -Name "Trusted Locations" -ErrorAction SilentlyContinue
+
+
+#****************************************************************************************************************************************************************
+#Add Trusted Locations to Office Products
+#****************************************************************************************************************************************************************
+Set-TrustLocation "Location5" "C:\" "Local Drive"
+Set-TrustLocation "Location6" "\\afcorp.afg\afhomeoffice" "Network Share"
+
+#****************************************************************************************************************************************************************
+
+$progress++
+[int]$pct = ($progress/$maxprogress)*100
+$progressbar1.Value = $pct
+$objLabel.text="Profile Migration Completed!"
+[void] $objForm.Focus()
+$objForm.Refresh()
+
+#Remove Profile Capture directory
+if (Test-Path "$CaptureDir" ){
+  Remove-Item -Recurse -Force $CaptureDir
+}
+
+Start-Sleep -s 5
+
+$wshell = New-Object -ComObject Wscript.Shell -ErrorAction Stop
+$wshell.Popup("Profile Migration Completed",10,"Status",1)
+
+}#End if capture dir exists
+else {
+  $wshell = New-Object -ComObject Wscript.Shell -ErrorAction Stop
+  $wshell.Popup("Profile Capture may have failed. Please have user logon to previous Citrix VM and run this script.",10,"Status",1)
+}
+
+}#end main else for applying profile on V-XD workstations
+
+} #Check for Z drive
+else {
+  $wshell = New-Object -ComObject Wscript.Shell -ErrorAction Stop
+  $wshell.Popup("Z: Drive does not exist for user. Cannot run profile migration script.",10,"Status",1)
+}

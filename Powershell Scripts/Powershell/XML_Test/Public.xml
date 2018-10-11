@@ -1,0 +1,12 @@
+<PUBLIC>
+      <person>
+           <Name>MAN1</Name>
+           <Age>33</Age>
+      </person>
+
+
+      <person>
+           <Name>MAN2</Name>
+           <Age>64</Age>
+      </person>
+</PUBLIC>

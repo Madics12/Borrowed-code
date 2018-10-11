@@ -1,0 +1,1 @@
+.\GetOSVersion.ps1 | export-CSV -NoType list.csv -UseCulture
